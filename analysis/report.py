@@ -21,6 +21,15 @@ COLORS = {
     "orbstack": "#f24e1e",
 }
 
+# Metric direction. Throughput/count metrics are higher-better; everything else
+# (latencies, memory, build times) is lower-better. Keeps chart captions honest.
+HIGHER_BETTER = ("_per_sec", "_mbps", "_iops", "max_containers", "_count")
+
+
+def better_label(metric):
+    return "higher is better" if metric.endswith(HIGHER_BETTER) or "max_" in metric \
+        else "lower is better"
+
 
 def main():
     CHARTS.mkdir(parents=True, exist_ok=True)
@@ -40,7 +49,7 @@ def main():
         fig, ax = plt.subplots(figsize=(7, 4.2))
         ax.bar(runtimes, medians, yerr=errs, capsize=6,
                color=[COLORS.get(r, "#888") for r in runtimes])
-        ax.set_title(f"{scenario} — {metric}\n(median, whisker = p95; lower is better)")
+        ax.set_title(f"{scenario} — {metric}\n(median, whisker = p95; {better_label(metric)})")
         ax.set_ylabel(metric)
         ax.spines[["top", "right"]].set_visible(False)
         fig.tight_layout()

@@ -1,0 +1,14 @@
+# The DX contrast for the article: on Docker Desktop / OrbStack the scenario-7
+# stack is `docker compose up` — ONE command against this file. Apple `container`
+# has no native Compose, so the equivalent is the manual `container run` sequence
+# in bench/scenarios/07_stack.sh (network create + N runs). This file is the
+# yardstick, not part of the timed harness.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: bench
+    ports: ["5432:5432"]
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
