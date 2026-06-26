@@ -1,0 +1,13 @@
+# Pinned image digests — all runtimes pull IDENTICAL OCI bytes.
+# WHY: tags drift (postgres:16 today != postgres:16 next week). Digests don't.
+# Populate by running, for each image:  docker buildx imagetools inspect <ref>
+# then record the index/manifest digest below. Fill these in during setup.
+#
+# format: <logical-name> <ref@sha256:...>
+alpine        alpine:3.20@sha256:TODO
+nginx         nginx:1.27-alpine@sha256:TODO
+postgres      postgres:16@sha256:TODO
+redis         redis:7-alpine@sha256:TODO
+sysbench      ubuntu:24.04@sha256:TODO      # install sysbench in-scenario, or build a pinned image
+fio           ubuntu:24.04@sha256:TODO
+iperf3        networkstatic/iperf3@sha256:TODO

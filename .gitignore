@@ -1,0 +1,15 @@
+# Article draft stays local until published to Substack
+article/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Raw results are large/noisy; keep curated charts + aggregated stats only.
+# Comment the next line out if you want to commit the full raw corpus.
+results/raw/*.jsonl
+
+# macOS
+.DS_Store
