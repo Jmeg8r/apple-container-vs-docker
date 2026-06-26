@@ -9,7 +9,9 @@ set -euo pipefail
 source "${ROOT}/bench/lib/healthcheck.sh"
 source "${ROOT}/bench/lib/runtime.sh"
 
-IMG="alpine:3.20"   # TODO: pin by digest from images/manifests.lock before publishing
+# Fully-qualified ref: Apple `container` requires registry-qualified names (a real
+# DX friction vs Docker, which resolves bare `alpine:3.20`). TODO: pin by digest.
+IMG="docker.io/library/alpine:3.20"
 NAME="bench-baseline-$$"
 
 start="$(now_ms)"

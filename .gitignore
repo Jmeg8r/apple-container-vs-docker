@@ -13,3 +13,7 @@ results/raw/*.jsonl
 
 # macOS
 .DS_Store
+
+# Aggregated/curated outputs — commit deliberately after the real N>=10 run
+results/stats.json
+results/charts/*.png
