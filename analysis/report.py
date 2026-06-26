@@ -23,13 +23,11 @@ COLORS = {
 
 # Metric direction. Throughput/count metrics are higher-better; everything else
 # (latencies, memory, build times) is lower-better. Keeps chart captions honest.
-HIGHER_BETTER = ("_per_sec", "_mbps", "_iops", "max_containers", "_count")
+HIGHER_BETTER = {"write_iops", "write_bw_mbps", "net_throughput_mbps", "max_containers"}
 
 
 def better_label(metric):
-    return "higher is better" if metric.endswith(HIGHER_BETTER) or "max_" in metric \
-        else "lower is better"
-
+    return "higher is better" if metric in HIGHER_BETTER else "lower is better"
 
 def main():
     CHARTS.mkdir(parents=True, exist_ok=True)
