@@ -20,6 +20,7 @@ trap cleanup EXIT
 # Resolve the server IP and wait for it to listen.
 ip=""; for _ in $(seq 1 20); do ip="$(container_ip "$RUNTIME" "$SRV")"; [ -n "$ip" ] && break; python3 -c 'import time;time.sleep(0.5)'; done
 [ -z "$ip" ] && { echo '{"error":"could not resolve server IP (container-to-container unsupported?)"}'; exit 0; }
+wait_tcp "$ip" 5201 30 || { echo '{"error":"iperf3 server never listened"}'; exit 0; }
 
 out="$("$CLI" run --rm --network "$NET" "$IMG" iperf3 -c "$ip" -t 5 -J 2>/dev/null)" \
   || { echo '{"error":"iperf3 client failed (no container-to-container path?)"}'; exit 0; }
