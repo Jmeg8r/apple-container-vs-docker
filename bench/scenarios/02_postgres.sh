@@ -6,7 +6,7 @@ source "${ROOT}/bench/lib/healthcheck.sh"
 source "${ROOT}/bench/lib/runtime.sh"
 source "${ROOT}/bench/lib/util.sh"
 
-IMG="docker.io/library/postgres:16"   # TODO: digest-pin
+IMG="$(img postgres)"
 NAME="bench-pg-$$"; PORT="$(free_port)"
 trap 'runtime_rm "$RUNTIME" "$NAME"' EXIT
 
