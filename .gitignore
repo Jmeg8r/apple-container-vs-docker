@@ -14,6 +14,7 @@ results/raw/*.jsonl
 # macOS
 .DS_Store
 
-# Aggregated/curated outputs — commit deliberately after the real N>=10 run
-results/stats.json
-results/charts/*.png
+# Run logs are noisy; keep raw jsonl local. Curated stats + charts ARE committed
+# (the published N>=10 results, see docs/findings.md).
+results/real_run.log
+results/iperf_rerun.log

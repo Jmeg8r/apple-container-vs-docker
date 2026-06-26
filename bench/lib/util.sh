@@ -6,6 +6,15 @@
 #       let a parsing quirk in a nice-to-have metric nuke a measurement.
 set -euo pipefail
 
+# Resolve a logical image name to its digest-pinned ref from images/manifests.lock.
+# Keeps the digest in ONE place (the lock file) instead of sprinkled across scenarios.
+img() {
+  local key="$1" ref
+  ref="$(awk -v k="$key" '$1==k{print $2; exit}' "${ROOT}/images/manifests.lock")"
+  [ -z "$ref" ] && { echo "img: no pinned image for '$key'" >&2; return 1; }
+  printf '%s' "$ref"
+}
+
 # Pick an unused TCP port on the host (avoids collisions between sequential runs).
 free_port() {
   python3 -c 'import socket;s=socket.socket();s.bind(("",0));print(s.getsockname()[1]);s.close()'

@@ -13,6 +13,16 @@ This repo backs the ASTGL tutorial *"Apple Container vs Docker: when to use whic
 Apple Silicon."* **Every claim in the article traces to a number or a logged failure
 in `results/`.** No vibes.
 
+## Results (median of N≥10, macOS 26 / M3 Ultra) — full table + charts in [`docs/findings.md`](docs/findings.md)
+
+- **Apple `container` wins:** idle footprint **22–32× smaller** (51 MB vs 1,124 / 1,631),
+  CPU work (slight edge), and **cached builds** (fastest).
+- **Apple `container` loses:** startup latency (3–7×), **bind-mount I/O ~17× vs OrbStack**,
+  container↔container networking (~7×), cold build (1.8×), spawn time (4×) — the per-VM cost.
+- **OrbStack** = all-round speed pick (crushes I/O + networking) and keeps Compose.
+  **Docker Desktop** = ecosystem default. **Apple `container`** = isolation + tiny idle
+  footprint, at the price of the dev-loop and Compose.
+
 > ⚠️ OrbStack and Docker Desktop both expose the `docker` CLI and **cannot run at the
 > same time**. The harness switches the active engine between runs and stamps which one
 > served each result.

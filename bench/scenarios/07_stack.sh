@@ -18,8 +18,8 @@ trap cleanup EXIT
 cmds=0
 t0="$(now_ms)"
 "$CLI" network create "$NET" >/dev/null 2>&1 || { echo '{"error":"network create failed"}'; exit 0; }; cmds=$((cmds+1))
-"$CLI" run -d --name "$PG" --network "$NET" -e POSTGRES_PASSWORD=bench -p "${PG_PORT}:5432" docker.io/library/postgres:16 >/dev/null || { echo '{"error":"postgres failed"}'; exit 0; }; cmds=$((cmds+1))
-"$CLI" run -d --name "$RD" --network "$NET" -p "${RD_PORT}:6379" docker.io/library/redis:7-alpine >/dev/null || { echo '{"error":"redis failed"}'; exit 0; }; cmds=$((cmds+1))
+"$CLI" run -d --name "$PG" --network "$NET" -e POSTGRES_PASSWORD=bench -p "${PG_PORT}:5432" "$(img postgres)" >/dev/null || { echo '{"error":"postgres failed"}'; exit 0; }; cmds=$((cmds+1))
+"$CLI" run -d --name "$RD" --network "$NET" -p "${RD_PORT}:6379" "$(img redis)" >/dev/null || { echo '{"error":"redis failed"}'; exit 0; }; cmds=$((cmds+1))
 
 # Stack is "ready" when BOTH services accept connections (each reached natively).
 read -r pg_host pg_p <<<"$(service_endpoint "$RUNTIME" "$PG" 5432 "$PG_PORT")"

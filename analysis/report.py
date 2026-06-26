@@ -23,7 +23,8 @@ COLORS = {
 
 # Metric direction. Throughput/count metrics are higher-better; everything else
 # (latencies, memory, build times) is lower-better. Keeps chart captions honest.
-HIGHER_BETTER = {"write_iops", "write_bw_mbps", "net_throughput_mbps", "max_containers"}
+HIGHER_BETTER = {"write_iops", "write_bw_mbps", "net_throughput_mbps",
+                 "max_containers", "cpu_events_per_sec"}
 
 
 def better_label(metric):

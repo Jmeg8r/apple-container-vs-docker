@@ -7,7 +7,7 @@ source "${ROOT}/bench/lib/healthcheck.sh"
 source "${ROOT}/bench/lib/runtime.sh"
 source "${ROOT}/bench/lib/util.sh"
 
-IMG="docker.io/library/nginx:1.27-alpine"   # TODO: digest-pin
+IMG="$(img nginx)"
 NAME="bench-nginx-$$"; PORT="$(free_port)"
 trap 'runtime_rm "$RUNTIME" "$NAME"' EXIT
 

@@ -7,8 +7,9 @@
 set -euo pipefail
 source "${ROOT}/bench/lib/healthcheck.sh"
 source "${ROOT}/bench/lib/runtime.sh"
+source "${ROOT}/bench/lib/util.sh"
 
-IMG="docker.io/library/alpine:3.20"
+IMG="$(img alpine)"
 CAP="${DENSITY_CAP:-150}"
 PREFIX="dens-$$"
 cleanup() {
