@@ -1,0 +1,204 @@
+# lefthook.yml — ASTGL standard local gate stack.
+#
+# Design rule: cheap and always-on at pre-commit, expensive at pre-push,
+# metered (CodeRabbit) never automatic.
+#
+#   pre-commit  ~1-3s   format, lint, secrets on staged files only
+#   pre-push    ~5-60s  tests, workflow lint, full-history secret scan
+#   manual      metered `cr review` — you decide when to spend it
+#
+# Escape hatches:
+#   LEFTHOOK=0 git commit ...            skip everything
+#   LEFTHOOK_EXCLUDE=tests git push      skip one job
+#   git commit --no-verify               nuclear option
+
+min_version: 1.5.0
+colors: true
+
+# ---------------------------------------------------------------------------
+pre-commit:
+  parallel: true
+  commands:
+
+    format-python:
+      tags: format
+      glob: "*.py"
+      run: ruff format {staged_files}
+      stage_fixed: true
+
+    # ADVISORY, by deliberate choice — reports but does not block.
+    #
+    # WHY: a repo with pre-existing lint debt fails these on the first commit,
+    # every commit, before you have touched the offending file. That teaches you
+    # to reach for LEFTHOOK=0, and a gate you habitually bypass protects nothing
+    # while still costing you the pause. Secrets, commit-msg, big-files and
+    # tests stay hard: those catch things you cannot un-ship.
+    #
+    # Note there is no --fix / stage_fixed here. Advisory means REPORT. A job
+    # that silently rewrites your source while claiming to be non-blocking is
+    # the worst of both — `ruff --fix` will drop `# noqa` directives it judges
+    # unused, which during this kit's pilot removed a `# noqa: E402` that
+    # existed because matplotlib.use("Agg") must precede the pyplot import.
+    #
+    # Making these blocking again is a one-line change: drop the `|| true`.
+    lint-python:
+      tags: lint
+      glob: "*.py"
+      run: ruff check {staged_files} || true
+
+    lint-shell:
+      tags: lint
+      glob: "*.{sh,bash}"
+      run: shellcheck {staged_files} || true
+
+    lint-powershell:
+      tags: lint
+      glob: "*.{ps1,psm1,psd1}"
+      run: >
+        pwsh -NoProfile -Command
+        "$r = Invoke-ScriptAnalyzer -Path {staged_files} -Severity Error,Warning;
+         if ($r) { $r | Format-Table -AutoSize; exit 1 }"
+
+    lint-yaml:
+      tags: lint
+      glob: "*.{yml,yaml}"
+      exclude: "lefthook.yml|.coderabbit.yaml"
+      run: yamllint -d relaxed {staged_files}
+
+    # The single most important hook in this file. Secrets must never reach
+    # GitHub *or* CodeRabbit's cloud. This is your data-egress boundary.
+    secrets:
+      tags: security
+      run: gitleaks protect --staged --redact --no-banner --verbose
+
+    # Aikido secret scanner.
+    #
+    # WHY this lives here: this machine sets core.hooksPath globally to
+    # ~/.git-hooks, where an Aikido pre-commit hook runs in every repo. Because
+    # core.hooksPath makes Git ignore .git/hooks entirely, 10-repo-init.sh sets
+    # a repo-LOCAL core.hooksPath=.git/hooks so lefthook's hooks fire at all.
+    # That local override also takes this repo out of Aikido's global reach, so
+    # the scan is re-attached here rather than lost.
+    #
+    # Guarded so the template stays portable: no scanner, no-op, no failure.
+    aikido:
+      tags: security
+      run: |
+        SCANNER="$HOME/.local/bin/aikido-local-scanner"
+        [ -x "$SCANNER" ] || exit 0
+        "$SCANNER" pre-commit-scan "$(git rev-parse --show-toplevel)"
+
+    # Catch broken workflows before they burn Actions minutes on a flaky day.
+    lint-workflows:
+      tags: lint
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: actionlint {staged_files}
+
+    # Keep the CodeRabbit config honest.
+    #
+    # Requires CLI >= 0.7.0. Older builds answer "Unknown command: config" and
+    # this gate fails on the first commit that stages .coderabbit.yaml — which
+    # is the provisioning commit itself. 00-bootstrap-machine.sh warns on an
+    # older CLI; upgrade with `brew upgrade --cask coderabbit`.
+    #
+    # Note the schema caps tone_instructions at 250 characters, and the CLI
+    # treats an over-length value as an ERROR. Measure before editing.
+    validate-coderabbit:
+      tags: config
+      glob: ".coderabbit.yaml"
+      run: cr config validate
+
+    # Fail fast on accidentally committed large files.
+    no-big-files:
+      tags: hygiene
+      run: |
+        for f in {staged_files}; do
+          [ -f "$f" ] || continue
+          size=$(wc -c < "$f")
+          if [ "$size" -gt 5242880 ]; then
+            echo "✗ $f is $((size/1048576))MB — use LFS or add to .gitignore"
+            exit 1
+          fi
+        done
+
+# ---------------------------------------------------------------------------
+commit-msg:
+  commands:
+    conventional:
+      # CodeRabbit and `gh pr create --fill` both key off commit subjects.
+      # Consistent prefixes make PR titles write themselves.
+      run: |
+        head -n1 {1} | grep -qE '^(feat|fix|docs|refactor|test|chore|perf|ci|build|revert)(\(.+\))?!?: .{3,}' || {
+          echo "✗ Commit subject must be conventional, e.g.:"
+          echo "    feat(ladder): add project 07 file walker"
+          echo "    fix(jdex): handle missing index on first run"
+          exit 1
+        }
+
+# ---------------------------------------------------------------------------
+pre-push:
+  parallel: false
+  commands:
+
+    tests:
+      tags: tests
+      run: |
+        if [ -f pyproject.toml ] && grep -q pytest pyproject.toml 2>/dev/null; then
+          pytest -q --maxfail=1
+        elif [ -d tests ]; then
+          pytest -q --maxfail=1
+        else
+          echo "  (no tests configured — skipping)"
+        fi
+
+    typecheck:
+      tags: types
+      run: |
+        if command -v mypy >/dev/null 2>&1 && [ -f pyproject.toml ]; then
+          mypy . || true   # advisory until the codebase is fully annotated
+        fi
+
+    # Scan the commits actually being pushed.
+    #
+    # WHY the range is computed rather than hardcoded to @{push}: that revision
+    # only resolves once the branch HAS an upstream. With push.autoSetupRemote
+    # enabled (00-bootstrap-machine.sh sets it globally) the upstream is created
+    # BY the push — so during pre-push on a brand-new branch @{push} fails with
+    # "no upstream configured", and the gate blocks the first push of every
+    # feature branch. A gate that fires on every new branch is a gate you learn
+    # to bypass, which costs more than it protects.
+    secrets-history:
+      tags: security
+      run: |
+        if git rev-parse --verify --quiet '@{push}' >/dev/null 2>&1; then
+          RANGE="@{push}..HEAD"
+        else
+          # No upstream yet. Diff against the remote's default branch if we can
+          # see it; otherwise scan the whole history (first push of a new repo).
+          BASE=""
+          for c in main master; do
+            git show-ref --verify --quiet "refs/remotes/origin/$c" && { BASE="origin/$c"; break; }
+          done
+          if [ -n "$BASE" ]; then RANGE="$BASE..HEAD"; else RANGE=""; fi
+        fi
+        if [ -n "$RANGE" ]; then
+          gitleaks git --no-banner --redact --log-opts="$RANGE"
+        else
+          gitleaks git --no-banner --redact
+        fi
+
+    workflows:
+      tags: lint
+      run: |
+        if [ -d .github/workflows ]; then
+          actionlint
+        fi
+
+# ---------------------------------------------------------------------------
+# Metered CodeRabbit review — NOT wired to a git hook on purpose.
+# Free tier is 3 reviews/hour; the usage add-on bills per file reviewed.
+# Run deliberately:  lefthook run review
+review:
+  commands:
+    coderabbit:
+      run: cr review --base "${CR_BASE:-main}"

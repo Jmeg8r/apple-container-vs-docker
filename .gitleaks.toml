@@ -1,0 +1,71 @@
+# .gitleaks.toml — ASTGL standard secret-scanning config.
+# This is the data-egress boundary. Nothing here should ever reach GitHub
+# or CodeRabbit's cloud.
+
+title = "ASTGL secret scanning"
+
+[extend]
+useDefault = true   # inherit gitleaks' full built-in ruleset
+
+# ---------------------------------------------------------------------------
+# Additional rules for the things you actually handle
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "coderabbit-api-key"
+description = "CodeRabbit API key"
+regex = '''cr-[A-Za-z0-9_\-]{20,}'''
+tags = ["key", "coderabbit"]
+
+[[rules]]
+id = "vsphere-credential-literal"
+description = "Hardcoded vCenter/ESXi credential in PowerCLI"
+regex = '''(?i)(Connect-VIServer|Connect-CisServer)[^\n]{0,200}?-Password\s+['"][^'"]{4,}['"]'''
+tags = ["credential", "powercli"]
+
+[[rules]]
+id = "powershell-plaintext-password"
+description = "Plaintext password variable in PowerShell"
+regex = '''(?i)\$(password|passwd|pwd|secret|apikey|api_key|token)\s*=\s*['"][^'"$][^'"]{5,}['"]'''
+tags = ["credential", "powershell"]
+
+[[rules]]
+id = "internal-hostname"
+description = "Internal hostname or FQDN leaking into code"
+regex = '''(?i)\b[a-z0-9\-]+\.(ufl|shands|ufhealth)\.(edu|org)\b'''
+tags = ["pii", "internal"]
+
+[[rules]]
+id = "tailscale-authkey"
+description = "Tailscale auth key"
+regex = '''tskey-(auth|api|client)-[A-Za-z0-9\-]{10,}'''
+tags = ["key", "tailscale"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API key"
+regex = '''sk-ant-[A-Za-z0-9\-_]{20,}'''
+tags = ["key", "anthropic"]
+
+# ---------------------------------------------------------------------------
+# Allowlist — reduce false positives without punching holes
+# ---------------------------------------------------------------------------
+[allowlist]
+description = "Known-safe paths and placeholder values"
+
+paths = [
+  '''(.*?)(png|jpg|jpeg|gif|svg|webp|ico|pdf)$''',
+  '''(.*?)\.lock$''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)dist/''',
+  '''(^|/)tests?/fixtures/''',
+]
+
+regexes = [
+  '''(?i)(example|sample|placeholder|dummy|redacted|changeme|your[_-]?key[_-]?here)''',
+  '''(?i)xxxx+''',
+  '''<[A-Z_]{3,}>''',            # <API_KEY> style placeholders in docs
+  '''\$\{[A-Za-z_][A-Za-z0-9_]*\}''',  # ${ENV_VAR} references
+  '''\$env:[A-Za-z_][A-Za-z0-9_]*''',  # PowerShell env var references
+]
