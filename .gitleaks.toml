@@ -16,36 +16,42 @@ id = "coderabbit-api-key"
 description = "CodeRabbit API key"
 regex = '''cr-[A-Za-z0-9_\-]{20,}'''
 tags = ["key", "coderabbit"]
+keywords = ["cr-"]
 
 [[rules]]
 id = "vsphere-credential-literal"
 description = "Hardcoded vCenter/ESXi credential in PowerCLI"
 regex = '''(?i)(Connect-VIServer|Connect-CisServer)[^\n]{0,200}?-Password\s+['"][^'"]{4,}['"]'''
 tags = ["credential", "powercli"]
+keywords = ["Connect-VIServer", "Connect-CisServer"]
 
 [[rules]]
 id = "powershell-plaintext-password"
 description = "Plaintext password variable in PowerShell"
 regex = '''(?i)\$(password|passwd|pwd|secret|apikey|api_key|token)\s*=\s*['"][^'"$][^'"]{5,}['"]'''
 tags = ["credential", "powershell"]
+keywords = ["password", "passwd", "pwd", "secret", "apikey", "api_key", "token"]
 
 [[rules]]
 id = "internal-hostname"
 description = "Internal hostname or FQDN leaking into code"
 regex = '''(?i)\b[a-z0-9\-]+\.(ufl|shands|ufhealth)\.(edu|org)\b'''
 tags = ["pii", "internal"]
+keywords = ["ufl.edu", "shands.org", "ufhealth.org", "shands.edu", "ufhealth.edu", "ufl.org"]
 
 [[rules]]
 id = "tailscale-authkey"
 description = "Tailscale auth key"
 regex = '''tskey-(auth|api|client)-[A-Za-z0-9\-]{10,}'''
 tags = ["key", "tailscale"]
+keywords = ["tskey-"]
 
 [[rules]]
 id = "anthropic-api-key"
 description = "Anthropic API key"
 regex = '''sk-ant-[A-Za-z0-9\-_]{20,}'''
 tags = ["key", "anthropic"]
+keywords = ["sk-ant-"]
 
 # ---------------------------------------------------------------------------
 # Allowlist — reduce false positives without punching holes
@@ -53,8 +59,108 @@ tags = ["key", "anthropic"]
 [allowlist]
 description = "Known-safe paths and placeholder values"
 
+# 'pdf' was REMOVED from this list on 2026-08-08 (flagged in review). That removal was
+# NECESSARY BUT NOT SUFFICIENT, and the rest of the fix is deliberately NOT in this file.
+#
+# ⚠️ VERIFIED 2026-08-08, gitleaks 8.30.1. Differential test: an identical `cr-...` token
+# in t.txt and t.pdf, scanned with this config, flags ONLY t.txt. Scanned with a minimal
+# config that omits `[extend] useDefault`, BOTH are flagged. The surviving exclusion is
+# therefore in gitleaks' OWN BUILT-IN allowlist, inherited via useDefault above -- not in
+# this file. It is WIDER THAN PDF: xlsx, docx, bin and exe are skipped the same way.
+# Dropping useDefault to escape it would discard the entire built-in ruleset, which is a
+# far worse trade.
+#
+# CLOSED 2026-08-08 by scripts/scan-staged-binaries.sh, wired in as the lefthook
+# `secrets-binaries` pre-commit step. It defeats the upstream allowlist by changing the
+# PATH gitleaks sees rather than the config -- OOXML is copied to a *.zip temp name and
+# traversed with --max-archive-depth, PDFs go through pdftotext into `gitleaks stdin`.
+# THIS FILE THEREFORE REMAINS THE SINGLE SOURCE OF TRUTH, with every built-in rule still
+# live. No rule is duplicated anywhere, so nothing can drift out of sync.
+#
+# Raw-byte scanning of PDFs was evaluated and REJECTED: content streams are deflated, so
+# a raw scan of a real PDF reads 0 bytes and reports clean -- a false green, worse than
+# no gate. scripts/selftest-binary-scan.sh asserts that directly; if that case ever
+# starts passing, raw scanning became viable and the pdftotext dependency can be dropped.
+#
+# The line was still worth deleting: a local exclusion that duplicates an upstream one
+# reads as the reason PDFs are skipped, and would send the next person to fix the wrong
+# file -- exactly what happened here.
+#
+# ⚠️ STILL VERSION-DEPENDENT — but the version is no longer unknown. Everything above was
+# established against 8.30.1; a reviewer's sandbox on this same PR reported 1.7.3, whose
+# allowlist semantics differ and which has neither `stdin` nor --max-archive-depth. That
+# is now addressed from two directions, and it is worth knowing which does what:
+#
+#   BEHAVIOURAL, per run. scan-staged-binaries.sh runs a canary -- it pushes a known token
+#   through the exact code path it depends on and requires a hit -- so an unsupported
+#   binary reports UNKNOWN instead of passing silently. It asserts behaviour rather than
+#   parsing a version string or trusting --help.
+#
+#   DECLARATIVE, up front. lefthook.yml no longer invokes a bare `gitleaks`: the scans
+#   route through scripts/gitleaks-guard.sh, which refuses to run below
+#   GITLEAKS_MIN_VERSION and fails closed if it cannot identify the binary at all. CI
+#   (.github/workflows/secret-scan.yml) installs GITLEAKS_PINNED_VERSION exactly, verifies
+#   its SHA256 and asserts that binary is the one on PATH, so the authoritative verdict
+#   does not depend on any developer machine. Both versions live in one place,
+#   scripts/gitleaks-version.env.
+#
+# Neither subsumes the other. The canary catches a binary that is the right version but
+# behaves wrongly; the floor catches a 1.x binary before it produces a confusing partial
+# result, and gives one place to state what "verified" means. Keep both.
+#
+# A version floor still does NOT prove the coverage claims above -- it only bounds which
+# binary ran. The claims themselves are asserted by scripts/test-gitleaks-guard.sh, which
+# runs at pre-push and in CI. If you change anything in this file, run it; and if a gap
+# below ever CLOSES, it fails on purpose so this comment gets corrected rather than
+# quietly rotting.
+#
+# STANDING LIMIT, now narrower: pdf/xlsx/docx ARE read (see above). What no text scanner
+# can read is formats with no text layer -- images, fbx, exe, and scanned/image-only PDFs.
+# Those are REPORTED as NOT INSPECTED rather than passed silently. A green check on one of
+# them still means "not inspected," never "clean." This repo family already shipped a
+# commit whose only file was a 34KB .xlsx that gitleaks passed after scanning ~0 bytes;
+# that exact case is now covered. Judge the remaining opaque formats by hand.
+#
+# .gitignore is NOT a security boundary for this: `git add -f`, a rename, or a new binary
+# extension all bypass it. Ignoring the lead-magnet PDF reduces accident, not risk. Do not
+# describe secret coverage here as complete -- it is not: the text-layer-free formats above
+# remain open. (The unpinned-version hole that used to be listed here is closed; see the
+# two-directions note above.)
+#
+# Image formats stay allowlisted below: a credential in a screenshot is invisible to a
+# text scanner either way, so removing them buys noise, not coverage.
+#
+# ⚠️ ONE MORE TRAP, in the list itself: `tests?/fixtures/` means anything under
+# tests/fixtures/ is skipped. That is the conventional place to put a fixture, so a test
+# written to prove this config works will silently prove nothing if its fixture lands
+# there. scripts/test-gitleaks-guard.sh therefore builds its fixtures in a temp dir, and
+# asserts this exclusion explicitly so the trap stays visible rather than being
+# rediscovered. Same failure shape as the binaries above: not flagged ≠ not present.
+#
+# ⚠️ AND THE SAME TRAP BIT THIS LIST ITSELF. The image entry used to read
+# `(.*?)(png|jpg|jpeg|gif|svg|webp|ico)$` -- no literal dot, so it matched any path
+# ENDING IN THOSE LETTERS, not those extensions. `mexico`, `calico`, and `ffmpeg`-shaped
+# names were excluded from scanning by accident. Measured on gitleaks 8.30.1 with a live
+# token in each file: `secret.txt` -> 44 bytes scanned, 1 leak; `mexico`, same bytes ->
+# ~0 bytes scanned, "no leaks found". The file was never opened, so no rule could fire.
+# The neighbouring `\.lock$` entry always had the dot; this one did not.
+#
+# The anchored form also adds `(?i)`, which is a deliberate WIDENING: `PHOTO.PNG` was
+# previously scanned and now is not. That is consistent with the stated intent (image
+# files are excluded because a credential in a screenshot is invisible to a text scanner)
+# and it removes a case-sensitivity surprise, but it is a real coverage change, not a
+# pure bug fix -- recorded here so it is not rediscovered as one.
+#
+# test-gitleaks-guard.sh asserts BOTH directions: `mexico` is flagged, `probe.png` is not.
+#
+# ⚠️ svg WAS REMOVED FROM THIS LIST 2026-08-08 (flagged in review). The stated reason for
+# excluding images -- "a credential in a screenshot is invisible to a text scanner" -- is
+# true of rasters and FALSE of SVG, which is plain XML. A token in a <text>, <desc> or
+# <metadata> node is directly readable. It was excluded here AND classified as opaque in
+# scan-staged-binaries.sh, so it had no scanning gate whatsoever; both were removed
+# together. Rasters stay: for those the original justification does hold.
 paths = [
-  '''(.*?)(png|jpg|jpeg|gif|svg|webp|ico|pdf)$''',
+  '''(?i)\.(png|jpg|jpeg|gif|webp|ico)$''',
   '''(.*?)\.lock$''',
   '''(^|/)node_modules/''',
   '''(^|/)\.venv/''',
