@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Benchmark Harness",
+    "output": "apple-container-vs-docker.architecture.html",
+    "quality_profile": "showcase"
+  },
+  "components": [
+    {
+      "id": "just",
+      "type": "frontend",
+      "label": "justfile",
+      "sublabel": "bench, idle, report",
+      "pos": [
+        40,
+        250
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "runner",
+      "type": "backend",
+      "label": "runner.sh",
+      "sublabel": "warmup + N reps",
+      "pos": [
+        290,
+        250
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "adapter",
+      "type": "backend",
+      "label": "runtime.sh",
+      "sublabel": "activate + verify engine",
+      "pos": [
+        790,
+        80
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "stamp",
+      "type": "backend",
+      "label": "env_stamp.sh",
+      "sublabel": "versions, chip, thermal",
+      "pos": [
+        40,
+        80
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "scen",
+      "type": "backend",
+      "label": "Scenarios",
+      "sublabel": "00_baseline to 08_density",
+      "pos": [
+        540,
+        250
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "libs",
+      "type": "backend",
+      "label": "Shared libs",
+      "sublabel": "healthcheck.sh, util.sh",
+      "pos": [
+        540,
+        420
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "rts",
+      "type": "external",
+      "label": "Container runtimes",
+      "sublabel": "Apple, Docker Desktop, OrbStack",
+      "pos": [
+        790,
+        250
+      ],
+      "size": [
+        170,
+        60
+      ]
+    },
+    {
+      "id": "idle",
+      "type": "backend",
+      "label": "idle_footprint.sh",
+      "sublabel": "helper RSS at idle",
+      "pos": [
+        40,
+        590
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "raw",
+      "type": "database",
+      "label": "results/raw",
+      "sublabel": "JSONL per scenario + runtime",
+      "pos": [
+        290,
+        590
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "collect",
+      "type": "backend",
+      "label": "collect.py",
+      "sublabel": "median, p95, stdev",
+      "pos": [
+        540,
+        590
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "report",
+      "type": "backend",
+      "label": "report.py",
+      "sublabel": "PNG charts",
+      "pos": [
+        790,
+        590
+      ],
+      "size": [
+        140,
+        60
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "just-to-runner",
+      "from": "just",
+      "to": "runner",
+      "label": "bench",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "runner-to-adapter",
+      "from": "runner",
+      "to": "adapter",
+      "label": "activate",
+      "fromSide": "top",
+      "toSide": "left"
+    },
+    {
+      "id": "runner-to-stamp",
+      "from": "runner",
+      "to": "stamp",
+      "label": "env stamp",
+      "fromSide": "top",
+      "toSide": "right"
+    },
+    {
+      "id": "runner-to-scen",
+      "from": "runner",
+      "to": "scen",
+      "label": "per-rep process",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "scen-to-rts",
+      "from": "scen",
+      "to": "rts",
+      "label": "CLI run",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "scen-to-libs",
+      "from": "scen",
+      "to": "libs",
+      "label": "source",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "adapter-to-rts",
+      "from": "adapter",
+      "to": "rts",
+      "label": "select engine",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "runner-to-raw",
+      "from": "runner",
+      "to": "raw",
+      "label": "append JSONL",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 24
+    },
+    {
+      "id": "idle-to-raw",
+      "from": "idle",
+      "to": "raw",
+      "label": "idle JSONL",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "raw-to-collect",
+      "from": "raw",
+      "to": "collect",
+      "label": "drop warmup",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "collect-to-report",
+      "from": "collect",
+      "to": "report",
+      "label": "stats.json",
+      "fromSide": "right",
+      "toSide": "left"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Harness",
+      "items": [
+        "runner.sh discards rep 0 as warmup, then records N reps (default 10)",
+        "Each rep runs in a fresh bash child process"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Runtimes",
+      "items": [
+        "Docker Desktop and OrbStack both answer to docker; runtime.sh verifies which one is active",
+        "Apple container is driven through the container CLI"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Analysis",
+      "items": [
+        "collect.py writes results/stats.json",
+        "report.py renders one PNG bar chart per scenario and metric"
+      ]
+    }
+  ]
+}
