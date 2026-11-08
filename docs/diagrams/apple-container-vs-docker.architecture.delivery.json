@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "fbe74c73-025c-4e47-84bf-740158a74bd9",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Volumes/Projects/Repositories/.worktrees/apple-container-vs-docker-doco-20261106/docs/diagrams/apple-container-vs-docker.architecture.json",
+  "output": "/Volumes/Projects/Repositories/.worktrees/apple-container-vs-docker-doco-20261106/docs/diagrams/apple-container-vs-docker.architecture.html",
+  "specification": {
+    "sha256": "5deca838df59833c7d837c90a85966b93323d4e2184e0a5ecb8736ca2130f4b2",
+    "bytes": 5436
+  },
+  "artifact": {
+    "sha256": "241db79a33616d673d5b2ff02880388892fa2ca0c89e9a827671cf8c33b348a8",
+    "bytes": 828364
+  }
+}
